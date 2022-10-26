@@ -734,7 +734,7 @@ void DownloadThread::_writeComplete()
     if (_ejectEnabled && _config.isEmpty() && _cmdline.isEmpty() && _firstrun.isEmpty())
         eject_disk(_filename.constData());
 
-    if (!_config.isEmpty() || !_cmdline.isEmpty() || !_firstrun.isEmpty())
+    if (!_config.isEmpty() || !_cmdline.isEmpty() || !_firstrun.isEmpty() || !_cloudinit.isEmpty())
     {
         if (!_customizeImage())
             return;

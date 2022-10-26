@@ -61,6 +61,12 @@ int Cli::main()
     parser.addOption(debugOption);
     QCommandLineOption quietOption("quiet", "Only write to console on error");
     parser.addOption(quietOption);
+    QCommandLineOption hostnameOption("hostname", "Hostname", "hostname", "ubuntu");
+    parser.addOption(hostnameOption);
+    QCommandLineOption sshAuthorizedKeysOption("sshAuthorizedKeys", "SSH Public Key", "sshAuthorizedKeys", "");
+    parser.addOption(sshAuthorizedKeysOption);
+    QCommandLineOption sshUserNameOption("sshUserName", "SSH UserName", "sshUserName", "pi");
+    parser.addOption(sshUserNameOption);
 
     parser.addPositionalArgument("src", "Image file/URL");
     parser.addPositionalArgument("dst", "Destination device");
@@ -69,7 +75,7 @@ int Cli::main()
     const QStringList args = parser.positionalArguments();
     if (args.count() != 2)
     {
-        std::cerr << "Usage: --cli [--disable-verify] [--sha256 <expected hash>] [--debug] [--quiet] <image file to write> <destination drive device>" << std::endl;
+        std::cerr << "Usage: --cli [--disable-verify] [--sha256 <expected hash>] [--debug] [--quiet] [--hostname <custom hostname>] [--sshAuthorizedKeys <your public key>] [--sshUserName <custom username>] <image file to write> <destination drive device>" << std::endl;
         return 1;
     }
 
@@ -143,9 +149,62 @@ int Cli::main()
     _imageWriter->setDst(args[1]);
     _imageWriter->setVerifyEnabled(!parser.isSet(disableVerify));
 
+    if (parser.isSet(hostnameOption) && parser.isSet(sshUserNameOption) && parser.isSet(sshAuthorizedKeysOption)) {
+      const QVariantMap setts = _imageWriter -> getSavedCustomizationSettings();
+      _imageWriter -> setSavedCustomizationSettings(setts);
+      QVariant hostname = parser.value(hostnameOption);
+      QVariant sshUserName = parser.value(sshUserNameOption);
+      QVariant sshAuthorizedKeys = parser.value(sshAuthorizedKeysOption);
+      if (!hostname.isNull()) {
+        addCloudInit("hostname: " + hostname.toString());
+        addCloudInit("manage_etc_hosts: true");
+        addCloudInit("packages:");
+        addCloudInit("- avahi-daemon");
+        /* Disable date/time checks in apt as NTP may not have synchronized yet when installing packages */
+        addCloudInit("apt:");
+        addCloudInit("  conf: |");
+        addCloudInit("    Acquire {");
+        addCloudInit("      Check-Date \"false\";");
+        addCloudInit("    };");
+        addCloudInit("");
+      }
+
+      // First user may not be called 'pi' on all distributions, so look username up
+      addCloudInit("users:");
+      addCloudInit("- name: " + sshUserName.toString());
+      addCloudInit("  groups: users,adm,dialout,audio,netdev,video,plugdev,cdrom,games,input,gpio,spi,i2c,render,sudo");
+      addCloudInit("  shell: /bin/bash");
+
+      QString pubkey = sshAuthorizedKeys.toString();
+      QStringList pubkeyArr = pubkey.split("\n");
+      QString pubkeySpaceSep = "";
+      for (int j = 0; j < pubkeyArr.length(); j++) {
+        QString pkitem = pubkeyArr[j].trimmed();
+        if (!pkitem.isEmpty()) {
+          pubkeySpaceSep += " '" + pkitem.replace("'", "'\"'\"'") + "'";
+        }
+      }
+
+      addCloudInit("  lock_passwd: true");
+      addCloudInit("  ssh_authorized_keys:");
+      for (int i = 0; i < pubkeyArr.length(); i++) {
+        QString pk = pubkeyArr[i].trimmed();
+        if (!pk.isEmpty()) {
+          addCloudInit("    - " + pk);
+        }
+      }
+      addCloudInit("  sudo: ALL=(ALL) NOPASSWD:ALL");
+      addCloudInit("");
+
+      _imageWriter -> setImageCustomization(_cloudinit.toLatin1());
+    }
     /* Run startWrite() in event loop (otherwise calling _app->exit() on error does not work) */
     QTimer::singleShot(1, _imageWriter, &ImageWriter::startWrite);
     return _app->exec();
+}
+
+void Cli::addCloudInit(const QString &s) {
+    _cloudinit += s+"\n";
 }
 
 void Cli::onSuccess()

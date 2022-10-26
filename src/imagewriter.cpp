@@ -1021,6 +1021,15 @@ void ImageWriter::setSetting(const QString &key, const QVariant &value)
     _settings.sync();
 }
 
+void ImageWriter::setImageCustomization(const QByteArray &cloudinit)
+{
+    _cloudinit = cloudinit;
+    _initFormat = "cloudinit";
+
+    qDebug() << "initFormat:" << _initFormat;
+    qDebug() << "Cloudinit:" << cloudinit;
+}
+
 void ImageWriter::setImageCustomization(const QByteArray &config, const QByteArray &cmdline, const QByteArray &firstrun, const QByteArray &cloudinit, const QByteArray &cloudinitNetwork)
 {
     _config = config;
@@ -1031,7 +1040,7 @@ void ImageWriter::setImageCustomization(const QByteArray &config, const QByteArr
 
     qDebug() << "Custom config.txt entries:" << config;
     qDebug() << "Custom cmdline.txt entries:" << cmdline;
-    qDebug() << "Custom firstuse.sh:" << firstrun;
+    qDebug() << "Custom firstrun.sh:" << firstrun;
     qDebug() << "Cloudinit:" << cloudinit;
 }
 

@@ -20,6 +20,7 @@ protected:
     ImageWriter *_imageWriter;
     int _lastPercent;
     QByteArray _lastMsg;
+    QString _cloudinit;
     bool _quiet;
 
     void _printProgress(const QByteArray &msg, QVariant now, QVariant total);
@@ -31,6 +32,7 @@ protected slots:
     void onDownloadProgress(QVariant dlnow, QVariant dltotal);
     void onVerifyProgress(QVariant now, QVariant total);
     void onPreparationStatusUpdate(QVariant msg);
+    void addCloudInit(const QString &s);
 
 signals:
 
